@@ -25,7 +25,7 @@ SRC_DIR		:= \
 	src \
 	libs/SlidingUpPanel/src \
 	libs/SystemBarTint/src \
-	libs/SwipeBackLayout/library/src/main/java \
+	libs/SwipeBackLayout/src/ \
 	libs/HoloColorPicker/src
 # Timestamp file of java sources
 # Just a fake "target", doesn't matter in fact
@@ -35,7 +35,7 @@ SRC_TS		:= $(BUILD_DIR)/sources.ts
 RES_DIR		:= \
 	res \
 	libs/SlidingUpPanel/res \
-	libs/SwipeBackLayout/library/src/main/res \
+	libs/SwipeBackLayout/res \
 	libs/HoloColorPicker/res
 # Timestamp file of resources
 RES_TS		:= $(BUILD_DIR)/resources.ts

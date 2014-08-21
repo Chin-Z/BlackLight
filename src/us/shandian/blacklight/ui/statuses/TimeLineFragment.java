@@ -70,6 +70,8 @@ public class TimeLineFragment extends Fragment implements SwipeRefreshLayout.OnR
 	private int mLastCount = 0;
 	private float mLastY = -1.0f;
 
+	private Runnable mCallback;
+
 	@Override
 	public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
 		
@@ -213,6 +215,7 @@ public class TimeLineFragment extends Fragment implements SwipeRefreshLayout.OnR
 				
 				if (!mNewHidden && y < mLastY) {
 					if (mNew != null && mRefresh != null) {
+						mNew.removeCallbacks(mCallback);
 						mNew.clearAnimation();
 						mRefresh.clearAnimation();
 					
@@ -223,6 +226,18 @@ public class TimeLineFragment extends Fragment implements SwipeRefreshLayout.OnR
 						mNew.setAnimation(anim);
 						mRefresh.setAnimation(anim);
 						anim.startNow();
+
+						// Hide after animation
+						mNew.postDelayed((mCallback = new Runnable() {
+							@Override
+							public void run() {
+								mNew.clearAnimation();
+								mRefresh.clearAnimation();
+
+								mNew.setVisibility(View.GONE);
+								mRefresh.setVisibility(View.GONE);
+							}
+						}), 400);
 					}
 
 					mNewHidden = true;
@@ -232,6 +247,11 @@ public class TimeLineFragment extends Fragment implements SwipeRefreshLayout.OnR
 					}
 				} else if (mNewHidden && y > mLastY) {
 					if (mNew != null && mRefresh != null) {
+						// Show them first
+						mNew.removeCallbacks(mCallback);
+						mNew.setVisibility(View.VISIBLE);
+						mRefresh.setVisibility(View.VISIBLE);
+
 						mNew.clearAnimation();
 						mRefresh.clearAnimation();
 

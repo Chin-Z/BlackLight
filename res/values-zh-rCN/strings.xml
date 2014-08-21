@@ -26,6 +26,9 @@
 	<string name="tail">尾巴</string>
 	<string name="username">用户名</string>
 	<string name="passwd">密码</string>
+
+	<!-- Main -->
+	<string name="switch_theme">切换主题</string>
 	
 	<!-- Left Drawer -->
 	<string name="my">我的圈子</string>
@@ -147,6 +150,7 @@
 	<string name="debug">调试</string>
 	<string name="debug_log">崩溃日志</string>
 	<string name="debug_crash">立即崩溃</string>
+	<string name="debug_crash_sum">亲，戳了就不要再向我们报告错误了哟！</string>
 	<string name="notification">通知</string>
 	<string name="notification_sound">声音</string>
 	<string name="notification_vibrate">震动</string>

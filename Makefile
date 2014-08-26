@@ -7,7 +7,7 @@ JARSIGNER	:= jarsigner		# Jar signing tool
 ZIPALIGN	:= zipalign			# Zip aligning tool
 MAKE		:= make				# GNU Make tool
 ADB			:= adb				# Android Debug Bridge
-PM			:= /system/bin/pm	# Package Manager on Android
+#PM			:= /system/bin/pm	# Package Manager on Android
 # You do not need PM if you are building on PC.
 
 # Build configs

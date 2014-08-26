@@ -29,7 +29,10 @@
 
 	<!-- Main -->
 	<string name="switch_theme">切换主题</string>
-	
+	<string name="group_all">全部</string>
+	<string name="group_create">创建分组</string>
+	<string name="group_destroy">删除当前分组</string>
+
 	<!-- Left Drawer -->
 	<string name="my">我的圈子</string>
 	<string name="at_me">提到我的</string>
@@ -104,6 +107,7 @@
 	<string name="no_following">未关注</string>
 	<string name="follow">关注Ta</string>
 	<string name="unfollow">取消关注</string>
+	<string name="change_group">修改分组</string>
 	
 	<!-- Single -->
 	<string name="single_info">微博信息</string>
@@ -177,7 +181,7 @@
 	<string name="expires_in">本次登录授权将于 %d 天后失效</string>
 	<string name="login_fail">登录失败，可能是 AppId/AppSecret/用户名/密码 错误</string>
 	<string name="send_fail">发送失败</string>
-	<string name="confirm_delete">请选择操作</string>
+	<string name="confirm_delete">确认删除吗？</string>
 	<string name="new_comment">%d 条新评论</string>
 	<string name="new_at">%d 条新提及</string>
 	<string name="click_to_view">点击查看</string>

@@ -30,10 +30,9 @@ import android.widget.AbsListView.LayoutParams;
 import android.widget.AdapterView;
 import android.widget.ListView;
 
-import android.support.v4.widget.SwipeRefreshLayout;
-
 import us.shandian.blacklight.R;
 import us.shandian.blacklight.cache.directmessages.DirectMessagesUserApiCache;
+import us.shandian.blacklight.ui.common.SwipeRefreshLayout;
 import us.shandian.blacklight.ui.common.SwipeUpAndDownRefreshLayout;
 import us.shandian.blacklight.ui.main.MainActivity;
 import us.shandian.blacklight.ui.statuses.UserTimeLineActivity;
@@ -194,12 +193,8 @@ public class DirectMessageUserFragment extends Fragment implements SwipeRefreshL
 			
 			mRefreshing = false;
 			mSwipeRefresh.setRefreshing(false);
-			
-			if (result) {
-				mAdapter.notifyDataSetChangedAndClear();
-			} else {
-				mAdapter.notifyDataSetChanged();
-			}
+
+			mAdapter.notifyDataSetChanged();
 		}
 	}
 }

@@ -31,13 +31,12 @@ import android.widget.AbsListView.LayoutParams;
 import android.widget.AdapterView;
 import android.widget.ListView;
 
-import android.support.v4.widget.SwipeRefreshLayout;
-
 import us.shandian.blacklight.R;
 import us.shandian.blacklight.api.friendships.FriendsApi;
 import us.shandian.blacklight.model.UserListModel;
 import us.shandian.blacklight.support.AsyncTask;
 import us.shandian.blacklight.support.adapter.UserAdapter;
+import us.shandian.blacklight.ui.common.SwipeRefreshLayout;
 import us.shandian.blacklight.ui.common.SwipeUpAndDownRefreshLayout;
 import us.shandian.blacklight.ui.main.MainActivity;
 import us.shandian.blacklight.ui.statuses.UserTimeLineActivity;
@@ -160,11 +159,7 @@ public class FriendsFragment extends Fragment implements SwipeRefreshLayout.OnRe
 
 		@Override
 		protected void onPostExecute(Boolean result) {
-			if (result) {
-				mAdapter.notifyDataSetChangedAndClear();
-			} else {
-				mAdapter.notifyDataSetChanged();
-			}
+			mAdapter.notifyDataSetChanged();
 			
 			mRefreshing = false;
 			mSwipeRefresh.setRefreshing(false);

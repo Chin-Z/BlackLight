@@ -21,9 +21,12 @@ package us.shandian.blacklight.ui.main;
 
 import android.app.ActionBar;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Fragment;
 import android.app.FragmentManager;
 import android.app.FragmentTransaction;
+import android.app.ProgressDialog;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
@@ -37,6 +40,7 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
 import android.widget.TextView;
@@ -49,8 +53,11 @@ import android.support.v4.widget.DrawerLayout;
 import java.util.concurrent.TimeUnit;
 
 import us.shandian.blacklight.R;
+import us.shandian.blacklight.api.friendships.GroupsApi;
 import us.shandian.blacklight.cache.login.LoginApiCache;
 import us.shandian.blacklight.cache.user.UserApiCache;
+import us.shandian.blacklight.model.GroupModel;
+import us.shandian.blacklight.model.GroupListModel;
 import us.shandian.blacklight.model.UserModel;
 import us.shandian.blacklight.support.AsyncTask;
 import us.shandian.blacklight.support.Settings;
@@ -71,7 +78,7 @@ import us.shandian.blacklight.ui.statuses.UserTimeLineActivity;
 import static us.shandian.blacklight.support.Utility.hasSmartBar;
 
 /* Main Container Activity */
-public class MainActivity extends Activity implements AdapterView.OnItemClickListener
+public class MainActivity extends Activity implements AdapterView.OnItemClickListener, ActionBar.OnNavigationListener
 {
 	private DrawerLayout mDrawer;
 	private int mDrawerGravity;
@@ -91,9 +98,17 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 	// Fragments
 	private Fragment[] mFragments = new Fragment[7];
 	private FragmentManager mManager;
+
+	// Groups
+	public GroupListModel mGroups;
+	public String mCurrentGroupId = null;
+	private MenuItem mGroupDestroy, mGroupCreate;
 	
 	// Temp fields
 	private TextView mLastChoice;
+	private int mCurrent = 0;
+	private int mNext = 0;
+	private boolean mIgnore = false;
 	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -111,7 +126,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 
 		// Detect if the user chose to use right-handed mode
 		boolean rightHanded = Settings.getInstance(this).getBoolean(Settings.RIGHT_HANDED, false);
-		mDrawerGravity = rightHanded ? Gravity.END : Gravity.START;
+		mDrawerGravity = rightHanded ? Gravity.RIGHT : Gravity.LEFT;
 
 		// Set gravity
 		View nav = findViewById(R.id.nav);
@@ -121,7 +136,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 
 		// Initialize naviagtion drawer
 		mDrawer = (DrawerLayout) findViewById(R.id.drawer);
-		mToggle = new ActionBarDrawerToggle(this, mDrawer, R.drawable.ic_drawer, 0, 0) {
+		mToggle = new ActionBarDrawerToggle(this, mDrawer, R.drawable.ic_drawer_l, 0, 0) {
 			@Override
 			public void onDrawerOpened(View drawerView) {
 				super.onDrawerOpened(drawerView);
@@ -132,14 +147,24 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 					mLastChoice.getPaint().setFakeBoldText(true);
 					mLastChoice.invalidate();
 				}
+
+				((HomeTimeLineFragment) mFragments[0]).hideFAB();
 			}
 
 			@Override
 			public void onDrawerClosed(View drawerView) {
 				invalidateOptionsMenu();
+
+				if (mNext == 0) {
+					((HomeTimeLineFragment) mFragments[0]).showFAB();
+				}
 			}
 		};
 		mDrawer.setDrawerListener(mToggle);
+
+		if (mDrawerGravity == Gravity.LEFT) {
+			mDrawer.setDrawerShadow(R.drawable.drawer_shadow, Gravity.LEFT);
+		}
 
 		mMy = (ListView) findViewById(R.id.list_my);
 		mAtMe = (ListView) findViewById(R.id.list_at_me);
@@ -163,6 +188,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 		mUserCache = new UserApiCache(this);
 		initList();
 		new InitializerTask().execute();
+		new GroupsTask().execute();
 		
 		findViewById(R.id.my_account).setOnClickListener(new View.OnClickListener() {
 
@@ -180,15 +206,10 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 		});
 		
 		// Initialize ActionBar Style
-		getActionBar().setDisplayHomeAsUpEnabled(true);
 		getActionBar().setHomeButtonEnabled(true);
 
-		if (Build.VERSION.SDK_INT >= 19) {
-			getActionBar().setDisplayUseLogoEnabled(false);
-			getActionBar().setDisplayShowHomeEnabled(false);
-		} else {
-			getActionBar().setIcon(new ColorDrawable(getResources().getColor(android.R.color.transparent)));
-		}
+		// Ignore first spinner event
+		mIgnore = true;
 
 		// Fragments
 		mFragments[0] = new HomeTimeLineFragment();
@@ -210,12 +231,6 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 	}
 
 	@Override
-	protected void onPostCreate(Bundle savedInstanceState) {
-		super.onPostCreate(savedInstanceState);
-		mToggle.syncState();
-	}
-
-	@Override
 	protected void onSaveInstanceState(Bundle bundle) {
 		// This is a dummy method
 		// To fix duplicate menu and fragments
@@ -233,22 +248,33 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 	}
 
 	@Override
-	public void onConfigurationChanged(Configuration newConfig) {
-		super.onConfigurationChanged(newConfig);
-		mToggle.onConfigurationChanged(newConfig);
+	public boolean onCreateOptionsMenu(Menu menu) {
+		getMenuInflater().inflate(R.menu.main, menu);
+
+		// Save some needed items
+		mGroupDestroy = menu.findItem(R.id.group_destroy);
+		mGroupCreate = menu.findItem(R.id.group_create);
+
+		mGroupDestroy.setEnabled(mCurrentGroupId != null);
+		return true;
 	}
 
 	@Override
-	public boolean onCreateOptionsMenu(Menu menu) {
-		getMenuInflater().inflate(R.menu.main, menu);
-		return true;
-	}
-
-	/*@Override
 	public boolean onPrepareOptionsMenu(Menu menu){
 		super.onPrepareOptionsMenu(menu);
+
+		if (mCurrent == 0) {
+			mGroupDestroy.setVisible(true);
+			mGroupCreate.setVisible(true);
+
+			mGroupDestroy.setEnabled(mCurrentGroupId != null);
+		} else {
+			mGroupDestroy.setVisible(false);
+			mGroupCreate.setVisible(false);
+		}
+
 		return true;
-	}*/
+	}
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
@@ -266,6 +292,44 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 			recreate();
 			
 			return true;
+		} else if (item.getItemId() == R.id.group_destroy) {
+			new AlertDialog.Builder(this)
+				.setMessage(R.string.confirm_delete)
+				.setCancelable(true)
+				.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						dialog.dismiss();
+					}
+				})
+				.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						new GroupDeleteTask().execute();
+					}
+				})
+				.show();
+			return true;
+		} else if (item.getItemId() == R.id.group_create) {
+			final EditText text = new EditText(this);
+			new AlertDialog.Builder(this)
+				.setTitle(R.string.group_create)
+				.setCancelable(true)
+				.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						dialog.dismiss();
+					}
+				})
+				.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
+					@Override
+					public void onClick(DialogInterface dialog, int which) {
+						new GroupCreateTask().execute(text.getText().toString().trim());
+					}
+				})
+				.setView(text)
+				.show();
+			return true;
 		} else {
 			return super.onOptionsItemSelected(item);
 		}
@@ -277,12 +341,18 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 			mLastChoice.getPaint().setFakeBoldText(false);
 			mLastChoice.invalidate();
 		}
+
+		if (mGroups != null && mGroups.getSize() > 0) {
+			getActionBar().setNavigationMode(ActionBar.NAVIGATION_MODE_STANDARD);
+			getActionBar().setDisplayShowTitleEnabled(true);
+		}
 		
 		if (parent == mMy) {
 			TextView tv = (TextView) view;
 			tv.getPaint().setFakeBoldText(true);
 			tv.invalidate();
 			mLastChoice = tv;
+			mNext = position;
 			if (mFragments[position] != null) {
 				tv.postDelayed(new Runnable() {
 					@Override
@@ -292,6 +362,12 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 						} catch (Exception e) {
 							
 						}
+
+						if (position == 0 && mGroups != null && mGroups.getSize() > 0) {
+							getActionBar().setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
+							getActionBar().setDisplayShowTitleEnabled(false);
+							updateActionSpinner();
+						}
 					}
 				}, 400);
 			}
@@ -300,6 +376,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 			tv.getPaint().setFakeBoldText(true);
 			tv.invalidate();
 			mLastChoice = tv;
+			mNext = position + 4;
 			if (mFragments[4 + position] != null) {
 				tv.postDelayed(new Runnable() {
 					@Override
@@ -315,6 +392,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 		} else if (parent == mOther) {
 			switch (position) {
 				case 0:{
+					mNext = 6;
 					view.postDelayed(new Runnable() {
 						@Override
 						public void run() {
@@ -348,6 +426,27 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 		
 		mDrawer.closeDrawer(mDrawerGravity);
 	}
+
+	@Override
+	public boolean onNavigationItemSelected(int id, long itemId) {
+		if (mIgnore) {
+			mIgnore = false;
+			return false;
+		}
+
+		if (id == 0) {
+			mCurrentGroupId = null;
+		} else {
+			mCurrentGroupId = mGroups.get(id - 1).idstr;
+		}
+
+		Settings.getInstance(this).putString(Settings.CURRENT_GROUP, mCurrentGroupId);
+		
+		((HomeTimeLineFragment) mFragments[0]).doRefresh();
+
+		return true;
+	}
+
 	
 	private void initList() {
 		mLastChoice = null;
@@ -373,6 +472,29 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 		}
 		
 		ft.commit();
+
+		mCurrent = id;
+		mNext = id;
+	}
+
+	private void updateActionSpinner() {
+		// Current Group
+		mCurrentGroupId = Settings.getInstance(MainActivity.this).getString(Settings.CURRENT_GROUP, null);
+		int curId = 0;
+
+		if (mCurrentGroupId != null) {
+			for (int i = 0; i < mGroups.getSize(); i++) {
+				if (mGroups.get(i).idstr.equals(mCurrentGroupId)) {
+					curId = i + 1;
+				}
+			}
+		}
+
+		if (curId == 0) {
+			mCurrentGroupId = null;
+		}
+
+		getActionBar().setSelectedNavigationItem(curId);
 	}
 	
 	private class InitializerTask extends AsyncTask<Void, Object, Void> {
@@ -388,7 +510,7 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 			if (avatar != null) {
 				publishProgress(new Object[]{1, avatar});
 			}
-			
+
 			return null;
 		}
 
@@ -407,6 +529,89 @@ public class MainActivity extends Activity implements AdapterView.OnItemClickLis
 			}
 			super.onProgressUpdate(values);
 		}
-		
+	}
+
+	private class GroupDeleteTask extends AsyncTask<Void, Void, Void> {
+		ProgressDialog prog;
+
+		@Override
+		protected void onPreExecute() {
+			prog = new ProgressDialog(MainActivity.this);
+			prog.setMessage(getResources().getString(R.string.plz_wait));
+			prog.setCancelable(false);
+			prog.show();
+		}
+
+		@Override
+		protected Void doInBackground(Void... params) {
+			GroupsApi.destroyGroup(mCurrentGroupId);
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(Void result) {
+			new GroupsTask().execute();
+			prog.dismiss();
+			onNavigationItemSelected(0, 0);
+		}
+	}
+
+	private class GroupCreateTask extends AsyncTask<String, Void, Void> {
+		ProgressDialog prog;
+
+		@Override
+		protected void onPreExecute() {
+			prog = new ProgressDialog(MainActivity.this);
+			prog.setMessage(getResources().getString(R.string.plz_wait));
+			prog.setCancelable(false);
+			prog.show();
+		}
+
+		@Override
+		protected Void doInBackground(String... params) {
+			GroupsApi.createGroup(params[0]);
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(Void result) {
+			new GroupsTask().execute();
+			prog.dismiss();
+		}
+	}
+
+	private class GroupsTask extends AsyncTask<Void, Void, Void> {
+		@Override
+		protected Void doInBackground(Void... params) {
+			mGroups = GroupsApi.getGroups();
+			return null;
+		}
+
+		@Override
+		protected void onPostExecute(Void result) {
+			super.onPostExecute(result);
+
+			if (mGroups != null && mGroups.getSize() > 0) {
+				// Get the name list
+				String[] names = new String[mGroups.getSize() + 1];
+
+				names[0] = getResources().getString(R.string.group_all);
+				for (int i = 0; i < mGroups.getSize(); i++) {
+					names[i + 1] = mGroups.get(i).name;
+				}
+
+				// Navigation
+				getActionBar().setListNavigationCallbacks(new ArrayAdapter(MainActivity.this, 
+							R.layout.action_spinner_item, names), MainActivity.this);
+
+				if (mCurrent == 0) {
+					mIgnore = true;
+					getActionBar().setNavigationMode(ActionBar.NAVIGATION_MODE_LIST);
+					getActionBar().setDisplayShowTitleEnabled(false);
+					updateActionSpinner();
+				}
+			}
+		}
+
 	}
 }

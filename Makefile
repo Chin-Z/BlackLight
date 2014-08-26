@@ -25,7 +25,7 @@ SRC_DIR		:= \
 	src \
 	libs/SlidingUpPanel/src \
 	libs/SystemBarTint/src \
-	libs/SwipeBackLayout/library/src/main/java \
+	libs/SwipeBackLayout/src \
 	libs/HoloColorPicker/src \
 	libs/AndroidSwipeLayout/src
 # Timestamp file of java sources

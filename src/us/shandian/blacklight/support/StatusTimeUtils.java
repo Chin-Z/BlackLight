@@ -21,18 +21,23 @@ package us.shandian.blacklight.support;
 
 import android.content.Context;
 import android.content.res.Resources;
+import android.util.Log;
 
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Locale;
 import java.text.SimpleDateFormat;
 
 import us.shandian.blacklight.R;
+import static us.shandian.blacklight.BuildConfig.DEBUG;
 
 /*
   credits to: Sina Weibo SDK / qii / me
 */
 public class StatusTimeUtils
 {
+	private static final String TAG = StatusTimeUtils.class.getSimpleName();
+
 	private static final long MILLIS_MIN = 1000 * 60;
 	private static final long MILLIS_HOUR = MILLIS_MIN * 60;
 	
@@ -42,7 +47,10 @@ public class StatusTimeUtils
 	private static SimpleDateFormat day_format = new SimpleDateFormat("HH:mm");
 	private static SimpleDateFormat date_format = new SimpleDateFormat("M-d HH:mm");
 	private static SimpleDateFormat year_format = new SimpleDateFormat("yyyy-M-d HH:mm");
+	private static SimpleDateFormat orig_format = new SimpleDateFormat("EEE MMM dd HH:mm:ss Z yyyy", Locale.US);
 	
+	private static Calendar sCal1 = Calendar.getInstance(),
+							sCal2 = Calendar.getInstance();
 	
 	private static StatusTimeUtils mInstance;
 	
@@ -94,14 +102,33 @@ public class StatusTimeUtils
 
 		return nowYear == msgYear;
 	}
+
+	public synchronized long parseTimeString(String created_at) {
+		try {
+			return orig_format.parse(created_at).getTime();
+		} catch (Exception e) {
+			if (DEBUG) {
+				Log.e(TAG, "Failed parsing time: " + created_at);
+			}
+
+			return -1;
+		}
+	}
+
+	public synchronized String buildTimeString(String created_at) {
+		return buildTimeString(parseTimeString(created_at));
+	}
 	
-	public String buildTimeString(String created_at) {
-		Calendar cal = Calendar.getInstance();
-		cal.setTime(new Date(created_at));
+	public synchronized String buildTimeString(long millis) {
+		Calendar cal = sCal1;
+		
+		cal.setTimeInMillis(millis);
+		
 		long msg = cal.getTimeInMillis();
 		long now = System.currentTimeMillis();
 		
-		Calendar nowCalendar = Calendar.getInstance();
+		Calendar nowCalendar = sCal2;
+		sCal2.setTimeInMillis(now);
 		
 		long differ = now - msg;
 		long difsec = differ / 1000;
